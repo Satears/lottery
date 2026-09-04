@@ -1,0 +1,23 @@
+# --- 依赖 / 构建缓存：绝不打进镜像 ---
+node_modules
+.next
+.next_*
+archive_stale_.next_*
+
+# --- 本地配置与密钥：绝不打进镜像（Railway 用面板环境变量注入）---
+.env
+.env*.local
+
+# --- 开发 / 测试产物 ---
+*.tsbuildinfo
+test
+next-env.d.ts
+*.log
+
+# --- 文档（可选，减小上下文）---
+*.md
+README.md
+
+# --- git 元数据 ---
+.git
+.gitignore

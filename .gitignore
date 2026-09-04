@@ -1,0 +1,26 @@
+# dependencies
+node_modules
+
+# next.js build output
+.next
+.next_*
+archive_stale_.next_*
+
+# env files (never commit real credentials)
+.env
+.env.local
+.env*.local
+
+# typescript / build cache
+*.tsbuildinfo
+
+# next auto-generated
+next-env.d.ts
+
+# os / editor
+.DS_Store
+Thumbs.db
+*.log
+
+# workbuddy internal workspace metadata (never publish)
+.workbuddy/

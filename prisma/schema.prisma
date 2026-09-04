@@ -1,0 +1,72 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Activity {
+  id          Int           @id @default(autoincrement())
+  title       String
+  description String?
+  status      String        @default("DRAFT") // DRAFT | ACTIVE | ENDED
+  startAt     DateTime      @default(now())
+  endAt       DateTime?
+  prizes      Prize[]
+  entries     Entry[]
+  winners     Winner[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+model Prize {
+  id          Int       @id @default(autoincrement())
+  activityId  Int
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  name        String
+  icon        String    @default("🎁")
+  stock       Int       @default(1) // 总库存/名额
+  drawn       Int       @default(0) // 已抽出的数量
+  probability Int       @default(0) // 中奖权重（相对值，0 表示不参与概率分配）
+  type        String    @default("PHYSICAL") // PHYSICAL 实物 | COUPON 优惠券/代金券
+  order       Int       @default(0) // 转盘扇区顺序
+  winners     Winner[]
+  createdAt   DateTime  @default(now())
+}
+
+model Entry {
+  id          Int       @id @default(autoincrement())
+  activityId  Int
+  activity    Activity  @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  name        String
+  phone       String
+  ip          String?
+  // 中奖结果（null 表示未开奖/谢谢参与）
+  won         Boolean   @default(false)
+  prizeId     Int?
+  // 收货地址（中实物奖时填写）
+  address     String?
+  createdAt   DateTime  @default(now())
+  winners     Winner[]
+
+  @@unique([activityId, phone])
+  @@index([activityId])
+}
+
+model Winner {
+  id         Int      @id @default(autoincrement())
+  activityId Int
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  prizeId    Int
+  prize      Prize    @relation(fields: [prizeId], references: [id], onDelete: Cascade)
+  entryId    Int
+  entry      Entry    @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  // 冗余存储中奖人信息（从 Entry 冗余，便于直接公示/展示，避免每处 join）
+  name       String?
+  phone      String?
+  createdAt  DateTime @default(now())
+
+  @@index([activityId])
+}

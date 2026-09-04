@@ -1,0 +1,27 @@
+name: 自动部署到腾讯云
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    steps:
+      - name: 拉取并构建部署
+        shell: bash
+        run: |
+          set -e
+          cd /opt/lottery
+          git fetch --all --prune
+          git reset --hard origin/main
+          npm install --no-audit --no-fund
+          npx prisma migrate deploy
+          npm run build
+          systemctl restart lottery
+          echo deploy-done

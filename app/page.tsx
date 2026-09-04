@@ -296,19 +296,19 @@ export default function Home() {
                 </div>
                 <div>
                   <label className="block text-sm text-white/60 mb-2">验证码</label>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       value={captcha}
                       onChange={(e) => setCaptcha(e.target.value.replace(/\D/g, ""))}
                       placeholder="输入右侧验证码"
                       maxLength={4}
-                      className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-500/20 transition-all"
+                      className="w-full sm:flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/30 outline-none focus:border-amber-400/60 focus:ring-2 focus:ring-amber-500/20 transition-all"
                     />
                     <button
                       type="button"
                       onClick={loadCaptcha}
-                      className="shrink-0 rounded-xl overflow-hidden border border-white/10 hover:border-amber-400/60 transition-colors"
+                      className="self-start sm:self-auto shrink-0 rounded-xl overflow-hidden border border-white/10 hover:border-amber-400/60 transition-colors"
                       title="点击刷新验证码"
                     >
                       {captchaImg ? (

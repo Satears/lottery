@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import BrandHeader from "./_components/BrandHeader";
 
@@ -20,6 +21,7 @@ export default function RootLayout({
             需等高占位元素让页面内容不被顶部 logo 覆盖 */}
         <div aria-hidden className="h-28 sm:h-32" />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );

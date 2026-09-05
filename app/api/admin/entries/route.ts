@@ -10,8 +10,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const activityIdRaw = searchParams.get("activityId");
   const activityId = activityIdRaw ? Number(activityIdRaw) : NaN;
-  const page = parseInt(searchParams.get("page") || "1");
-  const pageSize = parseInt(searchParams.get("pageSize") || "20");
+  const pageRaw = parseInt(searchParams.get("page") || "", 10);
+  const pageSizeRaw = parseInt(searchParams.get("pageSize") || "", 10);
+  // 防 NaN / 越界（避免 Prisma skip/take 收到非法值抛错）
+  const page = Number.isFinite(pageRaw) && pageRaw >= 1 ? pageRaw : 1;
+  const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw >= 1 ? Math.min(pageSizeRaw, 200) : 20;
   const keyword = searchParams.get("keyword") || "";
   const exportAll = searchParams.get("export") === "true";
 

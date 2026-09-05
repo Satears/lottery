@@ -62,5 +62,7 @@ export function signCaptcha(answer: string, salt: string): string {
 
 export function verifyCaptcha(answer: string, salt: string, sign: string): boolean {
   const expected = signCaptcha(answer, salt);
+  // timingSafeEqual 对不等长输入会抛异常，先做长度与格式校验
+  if (typeof sign !== "string" || sign.length !== expected.length) return false;
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sign));
 }

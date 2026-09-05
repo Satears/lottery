@@ -32,10 +32,18 @@ export async function GET(req: NextRequest) {
       winners: { some: {} },
     },
     orderBy: { updatedAt: "desc" },
-    include: {
-      prizes: { orderBy: { order: "asc" } },
+    select: {
+      id: true,
+      title: true,
       winners: {
-        include: { prize: true, entry: true },
+        // 投影裁剪：公示只用到姓名/手机号（冗余字段优先，缺失时回退 entry），
+        // 不再拉取整行/深层对象，降低名单变大后的 DB 与网络开销
+        select: {
+          name: true,
+          phone: true,
+          prize: { select: { order: true, name: true, icon: true } },
+          entry: { select: { name: true, phone: true } },
+        },
         orderBy: { createdAt: "asc" },
       },
     },

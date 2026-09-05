@@ -58,7 +58,13 @@ export async function POST(req: NextRequest) {
     });
 
     if (prizes && Array.isArray(prizes)) {
-      // 简单处理：删除旧的重新创建（注意：若已开奖请勿修改奖品，否则会级联删除中奖记录）
+      // 数据保护：一旦已有中奖/参与记录就禁止重置奖品
+      // （Prize onDelete:Cascade 会级联删除 Winner，导致中奖公示被清空且 Entry.prizeId 悬空）
+      const hasWinners = await prisma.winner.count({ where: { activityId: id } });
+      if (hasWinners > 0) {
+        return fail("该活动已有中奖记录，禁止重置奖品（会清空中奖名单）。如需调整，请新建活动", 400);
+      }
+      // 简单处理：删除旧的重新创建（无中奖记录前才允许）
       await prisma.prize.deleteMany({ where: { activityId: id } });
       await prisma.prize.createMany({
         data: prizes.map((p: any, i: number) => ({

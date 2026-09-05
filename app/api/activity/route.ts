@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 import { ok, fail, getIp } from "@/lib/api";
 import { verifyCaptcha } from "@/lib/captcha";
 import { rateLimit } from "@/lib/ratelimit";
-import { spinAndDraw } from "@/lib/spin";
+import { spinAndDrawTx } from "@/lib/spin";
 
 // 强制动态渲染：活动状态/库存实时变化，禁止静态化
 export const dynamic = "force-dynamic";
@@ -73,7 +73,25 @@ export async function GET() {
   return ok(data);
 }
 
-// 提交参与 + 执行转盘开奖（一体）
+// 组装"已参与过"响应（避免重复抽；奖品信息取自活动缓存快照）
+function buildAlreadyParticipated(existing: any, activity: any) {
+  const prevPrize = existing.prizeId
+    ? (activity?.prizes || []).find((p: any) => p.id === existing.prizeId)
+    : null;
+  return ok({
+    id: existing.id,
+    alreadyParticipated: true,
+    won: existing.won,
+    prizeId: existing.prizeId,
+    prizeOrder: prevPrize?.order ?? null,
+    prizeName: prevPrize?.name || null,
+    prizeIcon: prevPrize?.icon || null,
+    prizeType: prevPrize?.type || null,
+    message: "该手机号已参与过本次活动",
+  });
+}
+
+// 提交参与 + 执行转盘开奖（一体，创建记录与开奖在同一原子事务）
 export async function POST(req: NextRequest) {
   const ip = getIp(req);
 
@@ -105,7 +123,6 @@ export async function POST(req: NextRequest) {
   }
 
   // 复用活动缓存：省去每次抽奖前一次 activity+prizes 全表查询，降低 DB 读压力
-  // 抽奖扣库存/防超发由 spinAndDraw 事务内实时查询保证，不受本缓存影响
   const hit = await getActiveActivity();
   const activity: any = hit?.activity ?? null;
   if (!activity) {
@@ -117,65 +134,58 @@ export async function POST(req: NextRequest) {
     return fail("活动已结束", 400);
   }
 
-  // 防重复参与（同一活动同一手机号）
+  // 防重复参与（同一活动同一手机号）—— 快速路径
   const existing = await prisma.entry.findUnique({
     where: {
       activityId_phone: { activityId: activity.id, phone },
     },
   });
-
   if (existing) {
-    // 已参与过，返回其历史结果（避免重复抽）
-    const prevPrize = existing.prizeId
-      ? activity.prizes.find((p: any) => p.id === existing.prizeId)
-      : null;
-    return ok({
-      id: existing.id,
-      alreadyParticipated: true,
-      won: existing.won,
-      prizeId: existing.prizeId,
-      prizeOrder: prevPrize?.order ?? null,
-      prizeName: prevPrize?.name || null,
-      prizeIcon: prevPrize?.icon || null,
-      prizeType: prevPrize?.type || null,
-      message: "该手机号已参与过本次活动",
+    return buildAlreadyParticipated(existing, activity);
+  }
+
+  try {
+    // 创建参与记录 + 开奖必须在同一事务内：避免"记录已建、开奖失败"导致该手机号被卡死无法重试
+    const { entry, result } = await prisma.$transaction(async (tx) => {
+      const e = await tx.entry.create({
+        data: { activityId: activity.id, name, phone, ip },
+      });
+      const r = await spinAndDrawTx(tx, activity.id, e.id, 0, { name, phone });
+      return { entry: e, result: r };
     });
+
+    // 组装转盘扇区数据（用于前端动画指向）
+    const sectors = activity.prizes.map((p: any, i: number) => ({
+      id: p.id,
+      name: p.name,
+      icon: p.icon,
+      index: i,
+    }));
+
+    // 找到中奖扇区索引
+    let winIndex = -1;
+    if (result.won && result.prizeId) {
+      winIndex = sectors.findIndex((s: any) => s.id === result.prizeId);
+    }
+
+    return ok({
+      id: entry.id,
+      ...result,
+      sectors,
+      winIndex,
+      message: result.won
+        ? `恭喜您抽中「${result.prizeName}」！`
+        : "很遗憾，本次未中奖",
+    });
+  } catch (e: any) {
+    // 并发重复提交：撞唯一约束 (activityId, phone)，按"已参与"返回其历史结果
+    if (e?.code === "P2002") {
+      const dup = await prisma.entry.findUnique({
+        where: { activityId_phone: { activityId: activity.id, phone } },
+      });
+      if (dup) return buildAlreadyParticipated(dup, activity);
+    }
+    console.error("[activity] 抽奖失败:", e);
+    return fail("服务器繁忙，请稍后重试", 500);
   }
-
-  // 创建参与记录
-  const entry = await prisma.entry.create({
-    data: {
-      activityId: activity.id,
-      name,
-      phone,
-      ip,
-    },
-  });
-
-  // 执行转盘开奖（后端预判 + 库存扣减）
-  const result = await spinAndDraw(activity.id, entry.id, 0, { name, phone });
-
-  // 组装转盘扇区数据（用于前端动画指向）
-  const sectors = activity.prizes.map((p: any, i: number) => ({
-    id: p.id,
-    name: p.name,
-    icon: p.icon,
-    index: i,
-  }));
-
-  // 找到中奖扇区索引
-  let winIndex = -1;
-  if (result.won && result.prizeId) {
-    winIndex = sectors.findIndex((s: any) => s.id === result.prizeId);
-  }
-
-  return ok({
-    id: entry.id,
-    ...result,
-    sectors,
-    winIndex,
-    message: result.won
-      ? `恭喜您抽中「${result.prizeName}」！`
-      : "很遗憾，本次未中奖",
-  });
 }

@@ -14,9 +14,13 @@ export async function GET(req: NextRequest) {
 
   const winners = await prisma.winner.findMany({
     where: { activityId },
-    include: {
-      prize: true,
-      entry: true,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      createdAt: true,
+      prize: { select: { name: true, icon: true, type: true } },
+      entry: { select: { name: true, phone: true, address: true, won: true } },
     },
     orderBy: { createdAt: "desc" },
   });

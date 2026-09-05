@@ -53,6 +53,7 @@ model Entry {
 
   @@unique([activityId, phone])
   @@index([activityId])
+  @@index([phone])
 }
 
 model Winner {
@@ -68,5 +69,5 @@ model Winner {
   phone      String?
   createdAt  DateTime @default(now())
 
-  @@index([activityId])
+  @@index([activityId, createdAt])
 }

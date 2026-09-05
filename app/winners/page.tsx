@@ -93,8 +93,18 @@ export default function WinnersPage() {
 
   useEffect(() => {
     loadWinners(false);
-    const timer = setInterval(() => loadWinners(true), REFRESH_MS);
-    return () => clearInterval(timer);
+    // 大屏轮询：标签页不可见（切后台/最小化）时暂停，避免白打请求；恢复可见立即刷新
+    const timer = setInterval(() => {
+      if (!document.hidden) loadWinners(true);
+    }, REFRESH_MS);
+    const onVisible = () => {
+      if (!document.hidden) loadWinners(true);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [loadWinners]);
 
   const handleQuery = async (e: React.FormEvent) => {

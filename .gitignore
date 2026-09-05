@@ -27,3 +27,4 @@ Thumbs.db
 
 # stray full copy of the project (has its own .git) — never publish
 lottery/
+.vercel

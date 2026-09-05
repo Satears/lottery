@@ -91,6 +91,15 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // 12 秒仍无响应则判定为加载失败（避免 dev 首次编译或网络异常时无尽转圈）
+    const timer = setTimeout(() => {
+      setNotFound((nf) => {
+        if (loading && !nf) return true;
+        return nf;
+      });
+      setLoading(false);
+    }, 12000);
+
     fetch("/api/activity")
       .then((r) => r.json())
       .then((d) => {
@@ -98,7 +107,10 @@ export default function Home() {
         else setNotFound(true);
       })
       .catch(() => setNotFound(true))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(timer);
+        setLoading(false);
+      });
     loadCaptcha();
   }, []);
 
@@ -200,8 +212,13 @@ export default function Home() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center">
-        <div className="w-10 h-10 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+      <main className="min-h-screen flex items-center justify-center text-white">
+        <div className="text-center px-6">
+          <div className="mx-auto w-10 h-10 rounded-full border-2 border-amber-400 border-t-transparent animate-spin" />
+          <p className="mt-4 text-white/70 text-sm tracking-wider">
+            正在加载活动…
+          </p>
+        </div>
       </main>
     );
   }
@@ -211,8 +228,19 @@ export default function Home() {
       <main className="min-h-screen flex items-center justify-center text-white">
         <div className="text-center px-6">
           <div className="text-6xl mb-4">🎈</div>
-          <h1 className="text-2xl font-semibold mb-2">暂无进行中的活动</h1>
-          <p className="text-white/50">敬请期待，或联系活动主办方</p>
+          <h1 className="text-2xl font-semibold mb-2">活动加载失败</h1>
+          <p className="text-white/60 text-sm mb-5">
+            可能是服务器暂时无响应，请稍候重试
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              if (typeof window !== "undefined") window.location.reload();
+            }}
+            className="px-5 py-2.5 rounded-full text-sm font-medium text-white bg-gradient-to-r from-amber-500 via-yellow-500 to-orange-500 shadow-lg shadow-amber-500/30 hover:opacity-90 transition-opacity"
+          >
+            🔄 重新加载
+          </button>
         </div>
       </main>
     );

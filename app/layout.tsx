@@ -16,6 +16,9 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <BrandHeader />
+        {/* 占位：BrandHeader 是 fixed 定位(脱离文档流)，
+            需等高占位元素让页面内容不被顶部 logo 覆盖 */}
+        <div aria-hidden className="h-28 sm:h-32" />
         {children}
       </body>
     </html>
